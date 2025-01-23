@@ -71,7 +71,7 @@ while cap.isOpened():
     cv2.imshow("Pose Estimation", frame)
 
     # 'q'を押すと終了
-    if cv2.waitKey(1) & 0xFF == ord('q'):
+    if cv2.waitKey(10) & 0xFF == ord('q'):
         break
 
 # 終了処理
