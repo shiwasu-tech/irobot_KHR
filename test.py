@@ -4,6 +4,8 @@ import cv2
 import mediapipe as mp
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import pandas as pd
+import numpy as np
 
 # MediaPipeのポーズ推定モジュールをインスタンス化
 mp_pose = mp.solutions.pose
@@ -24,6 +26,9 @@ plt.ion()
 
 # 画像処理ループ
 while cap.isOpened():
+    # DataFrameの初期化
+    landmarks_df = pd.DataFrame(columns=['id', 'x', 'y', 'z', 'visibility'])
+    
     ret, frame = cap.read()
     if not ret:
         print("Error: Failed to grab frame.")
@@ -49,13 +54,18 @@ while cap.isOpened():
             x_data.append(landmark.x)
             z_data.append(landmark.y)  # y軸とz軸を入れ替え
             y_data.append(landmark.z)  # y軸とz軸を入れ替え
-            print(f"Landmark {id}: (x: {landmark.x}, y: {landmark.y}, z: {landmark.z}, visibility: {landmark.visibility})")
+            #print(f"Landmark {id}: (x: {landmark.x}, y: {landmark.y}, z: {landmark.z}, visibility: {landmark.visibility})")
+            new_row = pd.DataFrame([[id, landmark.x, landmark.y, landmark.z, landmark.visibility]], 
+                                   columns=['id', 'x', 'y', 'z', 'visibility'])
+            landmarks_df = pd.concat([landmarks_df, new_row], ignore_index=True)
         
         # 3Dプロットを更新
         ax.clear()
         ax.scatter(x_data, y_data, z_data, c='r', marker='o')
         plt.draw()
         plt.pause(0.001)
+
+        print(landmarks_df)
 
     # 画像を表示
     cv2.imshow("Pose Estimation", frame)
