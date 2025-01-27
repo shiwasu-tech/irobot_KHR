@@ -65,8 +65,11 @@ def main():
             # ax.scatter(x_data, y_data, z_data, c='r', marker='o')
             # plt.draw()
             # plt.pause(0.001)
-
+            
+            elbow_angle = angle_calq(landmarks_df)
+            
             print(landmarks_df)
+            print(elbow_angle)
 
         # 画像を表示
         cv2.imshow("Pose Estimation", frame)
@@ -80,6 +83,39 @@ def main():
     cv2.destroyAllWindows()
     plt.ioff()
     plt.show()
+    
+    
+def angle_calq(landmarks_df):
+    # 計算する関節のペアを指定
+    joint_pairs = [[12, 14, 16], [11, 13, 15]]
+    
+    angle_df = pd.DataFrame(columns=['id', 'angle'])
+    for i, joint_pair in enumerate(joint_pairs):
+        # 3点の座標を取得
+        p1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
+        p2 = landmarks_df[landmarks_df['id'] == joint_pair[1]][['x', 'y', 'z']].values
+        p3 = landmarks_df[landmarks_df['id'] == joint_pair[2]][['x', 'y', 'z']].values
+
+        # ベクトルを計算
+        v1 = p1 - p2
+        v2 = p3 - p2
+
+        # ベクトルの内積を計算
+        dot = np.dot(v1, v2.T)
+
+        # ベクトルのノルムを計算
+        norm1 = np.linalg.norm(v1)
+        norm2 = np.linalg.norm(v2)
+
+        # 角度を計算
+        cos_theta = dot / (norm1 * norm2)
+        theta = np.arccos(cos_theta) * 180 / np.pi
+
+        # DataFrameに追加
+        new_row = pd.DataFrame([[i, theta]], columns=['id', 'angle'])
+        angle_df = pd.concat([angle_df, new_row], ignore_index=True)
+    return angle_df
+
 
 if __name__ == '__main__':
     main()
