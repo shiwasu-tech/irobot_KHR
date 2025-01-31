@@ -67,9 +67,11 @@ def main():
             # plt.pause(0.001)
             
             elbow_angle = angle_calq(landmarks_df)
+            elbow_rot = rot_calq(landmarks_df)
             
             print(landmarks_df)
             print(elbow_angle)
+            print(elbow_rot)
 
         # 画像を表示
         cv2.imshow("Pose Estimation", frame)
@@ -115,6 +117,36 @@ def angle_calq(landmarks_df):
         new_row = pd.DataFrame([[i, theta]], columns=['id', 'angle'])
         angle_df = pd.concat([angle_df, new_row], ignore_index=True)
     return angle_df
+
+def rot_calq(landmarks_df):
+    # 計算する関節のペアを指定
+    joint_pairs = [[12,11,13,15],[14,12,11,16]]
+    
+    angle_df = pd.DataFrame(columns=['id', 'angle'])
+    for i, joint_pair in enumerate(joint_pairs):
+        # 4点の座標を取得
+        p1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
+        p2 = landmarks_df[landmarks_df['id'] == joint_pair[1]][['x', 'y', 'z']].values
+        p3 = landmarks_df[landmarks_df['id'] == joint_pair[2]][['x', 'y', 'z']].values
+        p4 = landmarks_df[landmarks_df['id'] == joint_pair[3]][['x', 'y', 'z']].values
+
+        # ベクトルを計算
+        v1 = p1 - p2
+        v2 = p3 - p2
+        v3 = p4 - p3
+
+        # v1,v2平面の法線ベクトルを計算
+        n1 = np.cross(v1, v2)
+
+        # v2を法線ベクトルとした平面上で、n1とv3のなす角度を計算
+        cos_theta = np.dot(n1, v3) / (np.linalg.norm(n1) * np.linalg.norm(v3))
+        theta = np.arccos(cos_theta) * 180 / np.pi
+
+        # DataFrameに追加
+        new_row = pd.DataFrame([[i, theta]], columns=['id', 'rotation'])
+        rotation_df = pd.concat([angle_df, new_row], ignore_index=True)
+        
+    return rotation_df
 
 
 if __name__ == '__main__':
