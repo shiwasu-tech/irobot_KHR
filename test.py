@@ -6,6 +6,23 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 import pandas as pd
 import numpy as np
+import warnings
+import sysv_ipc
+warnings.simplefilter('ignore', FutureWarning)
+
+# Message queue ID
+QUE_ID = 1234
+
+def send_angles_to_queue(angles, queue_id):
+    '''Send angles DataFrame to message queue'''
+    # Convert DataFrame to comma-separated string
+    angles_str = angles.to_csv(header=False, index=False, sep=',')
+    
+    # Create message queue
+    mq = sysv_ipc.MessageQueue(queue_id, sysv_ipc.IPC_CREAT)
+    
+    # Send message
+    mq.send(angles_str)
 
 def main():
     # MediaPipeのポーズ推定モジュールをインスタンス化
@@ -66,12 +83,18 @@ def main():
             # plt.draw()
             # plt.pause(0.001)
             
-            elbow_angle = angle_calq(landmarks_df)
-            elbow_rot = rot_calq(landmarks_df)
+            angles = angle_calq(landmarks_df)
+            #elbow_rot = rot_calq(landmarks_df)
             
             print(landmarks_df)
-            print(elbow_angle)
-            print(elbow_rot)
+            print(angles)
+            #print(elbow_rot)
+            
+            # Send angles to message queue
+            send_angles_to_queue(angles, QUE_ID)
+            
+            #servo_angles =
+            #khr_send(servo_angles)
 
         # 画像を表示
         cv2.imshow("Pose Estimation", frame)
@@ -88,19 +111,30 @@ def main():
     
     
 def angle_calq(landmarks_df):
+    '''2つのベクトル間の単純角度を計算'''
     # 計算する関節のペアを指定
-    joint_pairs = [[12, 14, 16], [11, 13, 15]]
+    joint_pairs = {
+        2 : [12, 11, 24, 23], # BODY_Y
+        9 : [13, 11, 13, 15], # L_ELBOW_P
+        10: [14, 12, 14, 16], # R_ELBOW_P
+        15: [23, 25, 23, 11], # L_HIP_P
+        16: [24, 26, 24, 12], # R_HIP_P
+        19: [25, 23, 25, 27], # L_KNEE_P
+        20: [26, 24, 26, 28], # R_KNEE_P
+
+    }
     
-    angle_df = pd.DataFrame(columns=['id', 'angle'])
-    for i, joint_pair in enumerate(joint_pairs):
+    angle_df = pd.DataFrame(columns=['servo_id', 'angle'])
+    for i, (key, joint_pair) in enumerate(joint_pairs.items()):
         # 3点の座標を取得
-        p1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
-        p2 = landmarks_df[landmarks_df['id'] == joint_pair[1]][['x', 'y', 'z']].values
-        p3 = landmarks_df[landmarks_df['id'] == joint_pair[2]][['x', 'y', 'z']].values
+        p_a1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
+        p_a2 = landmarks_df[landmarks_df['id'] == joint_pair[1]][['x', 'y', 'z']].values
+        p_b1 = landmarks_df[landmarks_df['id'] == joint_pair[2]][['x', 'y', 'z']].values
+        p_b2 = landmarks_df[landmarks_df['id'] == joint_pair[3]][['x', 'y', 'z']].values
 
         # ベクトルを計算
-        v1 = p1 - p2
-        v2 = p3 - p2
+        v1 = p_a2 - p_a1
+        v2 = p_b2 - p_b1
 
         # ベクトルの内積を計算
         dot = np.dot(v1, v2.T)
@@ -114,26 +148,27 @@ def angle_calq(landmarks_df):
         theta = np.arccos(cos_theta) * 180 / np.pi
 
         # DataFrameに追加
-        new_row = pd.DataFrame([[i, theta]], columns=['id', 'angle'])
+        new_row = pd.DataFrame([[key, theta[0,0]]], columns=['servo_id', 'angle'])
         angle_df = pd.concat([angle_df, new_row], ignore_index=True)
     return angle_df
 
 def rot_calq(landmarks_df):
+    '''肘のローテーション角度を取得'''
     # 計算する関節のペアを指定
     joint_pairs = [[12,11,13,15],[14,12,11,16]]
     
     angle_df = pd.DataFrame(columns=['id', 'angle'])
     for i, joint_pair in enumerate(joint_pairs):
         # 4点の座標を取得
-        p1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
-        p2 = landmarks_df[landmarks_df['id'] == joint_pair[1]][['x', 'y', 'z']].values
-        p3 = landmarks_df[landmarks_df['id'] == joint_pair[2]][['x', 'y', 'z']].values
-        p4 = landmarks_df[landmarks_df['id'] == joint_pair[3]][['x', 'y', 'z']].values
+        p_t1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
+        p_t2 = landmarks_df[landmarks_df['id'] == joint_pair[1]][['x', 'y', 'z']].values
+        p_t3 = landmarks_df[landmarks_df['id'] == joint_pair[2]][['x', 'y', 'z']].values
+        p_z = landmarks_df[landmarks_df['id'] == joint_pair[3]][['x', 'y', 'z']].values
 
         # ベクトルを計算
-        v1 = p1 - p2
-        v2 = p3 - p2
-        v3 = p4 - p3
+        v1 = p_t1 - p_t2
+        v2 = p_t3 - p_t2
+        v3 = p_z - p_t2
 
         # v1,v2平面の法線ベクトルを計算
         n1 = np.cross(v1, v2)
