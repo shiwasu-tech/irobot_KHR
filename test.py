@@ -13,6 +13,8 @@ warnings.simplefilter('ignore', FutureWarning)
 # Message queue ID
 QUE_ID = 1234
 
+send_mode = False
+
 def send_angles_to_queue(angles, queue_id):
     '''Send angles DataFrame to message queue'''
     # Convert DataFrame to comma-separated string
@@ -25,6 +27,13 @@ def send_angles_to_queue(angles, queue_id):
     mq.send(angles_str)
 
 def main():
+
+    input_mode = input("Send angles to message queue? (y/n): ")
+    if input_mode == 'y':
+        send_mode = True
+    else:
+        send_mode = False
+    
     # MediaPipeのポーズ推定モジュールをインスタンス化
     mp_pose = mp.solutions.pose
     pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
@@ -90,9 +99,10 @@ def main():
             print(angles)
             #print(elbow_rot)
             
-            # Send angles to message queue
-            send_angles_to_queue(angles, QUE_ID)
-            
+            if send_mode:
+                # Send angles to message queue
+                send_angles_to_queue(angles, QUE_ID)
+                
             #servo_angles =
             #khr_send(servo_angles)
 
@@ -136,8 +146,11 @@ def angle_calq(landmarks_df):
         v1 = p_a2 - p_a1
         v2 = p_b2 - p_b1
 
+        v1 = v1.squeeze()
+        v2 = v2.squeeze()
+
         # ベクトルの内積を計算
-        dot = np.dot(v1, v2.T)
+        dot = np.dot(v1, v2)
 
         # ベクトルのノルムを計算
         norm1 = np.linalg.norm(v1)
@@ -145,10 +158,16 @@ def angle_calq(landmarks_df):
 
         # 角度を計算
         cos_theta = dot / (norm1 * norm2)
-        theta = np.arccos(cos_theta) * 180 / np.pi
+        theta = np.arccos(cos_theta)
+        degree = np.degrees(theta)
+
+        cross_product = np.cross(v1, v2)
+
+        if cross_product[2] < 0:
+            degree = -degree
 
         # DataFrameに追加
-        new_row = pd.DataFrame([[key, theta[0,0]]], columns=['servo_id', 'angle'])
+        new_row = pd.DataFrame([[key, degree]], columns=['servo_id', 'angle'])
         angle_df = pd.concat([angle_df, new_row], ignore_index=True)
     return angle_df
 
