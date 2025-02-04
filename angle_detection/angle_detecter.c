@@ -88,4 +88,4 @@ int main(int argc, char *argv[])
 	return 0;
 }
 
-// gcc -I./librcb4/inc -L./librcb4/lib -o ./angle_detection/angle_detecter ./angle_detection/angle_detecter.c -lrcb4
+// gcc -I./librcb4/inc -L./librcb4/lib -o ./angle_detecter ./angle_detecter.c -lrcb4

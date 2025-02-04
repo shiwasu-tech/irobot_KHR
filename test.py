@@ -26,7 +26,24 @@ def send_angles_to_queue(angles, queue_id):
     # Send message
     mq.send(angles_str)
 
+def clear_message_queue(queue_id):
+    '''メッセージキューのキャッシュをクリアする'''
+    try:
+        # メッセージキューに接続
+        mq = sysv_ipc.MessageQueue(queue_id)
+        
+        # メッセージキュー内のすべてのメッセージを削除
+        while True:
+            try:
+                mq.receive(block=False)
+            except sysv_ipc.BusyError:
+                break
+    except sysv_ipc.ExistentialError:
+        print(f"Message queue with ID {queue_id} does not exist.")
+
 def main():
+
+    clear_message_queue(QUE_ID)
 
     input_mode = input("Send angles to message queue? (y/n): ")
     if input_mode == 'y':
@@ -92,19 +109,22 @@ def main():
             # plt.draw()
             # plt.pause(0.001)
             
-            angles = angle_calq(landmarks_df)
-            #elbow_rot = rot_calq(landmarks_df)
+            array = np.zeros((22,2))
+
+            angle_df = pd.DataFrame(array, columns=['servo_id', 'angle'])
+            angle_df['servo_id'] = range(1,23)
+
+            angle_df = angle_calq(landmarks_df,angle_df)
+            #angle_df = rot_calq(landmarks_df, angle_df)
+            value_df = angle_to_value(angle_df)
             
             print(landmarks_df)
-            print(angles)
-            #print(elbow_rot)
+            print(angle_df)
+            print(value_df)
             
             if send_mode:
                 # Send angles to message queue
-                send_angles_to_queue(angles, QUE_ID)
-                
-            #servo_angles =
-            #khr_send(servo_angles)
+                send_angles_to_queue(value_df.astype(int), QUE_ID)
 
         # 画像を表示
         cv2.imshow("Pose Estimation", frame)
@@ -120,11 +140,11 @@ def main():
     plt.show()
     
     
-def angle_calq(landmarks_df):
+def angle_calq(landmarks_df, angle_df):
     '''2つのベクトル間の単純角度を計算'''
     # 計算する関節のペアを指定
     joint_pairs = {
-        2 : [12, 11, 24, 23], # BODY_Y
+        2 : [28, 27, 12, 11], # BODY_Y
         9 : [13, 11, 13, 15], # L_ELBOW_P
         10: [14, 12, 14, 16], # R_ELBOW_P
         15: [23, 25, 23, 11], # L_HIP_P
@@ -132,9 +152,8 @@ def angle_calq(landmarks_df):
         19: [25, 23, 25, 27], # L_KNEE_P
         20: [26, 24, 26, 28], # R_KNEE_P
 
-    }
+        }
     
-    angle_df = pd.DataFrame(columns=['servo_id', 'angle'])
     for i, (key, joint_pair) in enumerate(joint_pairs.items()):
         # 3点の座標を取得
         p_a1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
@@ -164,25 +183,29 @@ def angle_calq(landmarks_df):
         cross_product = np.cross(v1, v2)
 
         if cross_product[2] < 0:
-            degree = -degree
-
+            degree = - degree
+        
+        
         # DataFrameに追加
-        new_row = pd.DataFrame([[key, degree]], columns=['servo_id', 'angle'])
-        angle_df = pd.concat([angle_df, new_row], ignore_index=True)
+        #angle_df.loc[key-1, 'servo_id'] = key
+        angle_df.loc[key-1, 'angle'] = degree
+        
     return angle_df
 
-def rot_calq(landmarks_df):
+def rot_calq(landmarks_df, angle_df):
     '''肘のローテーション角度を取得'''
     # 計算する関節のペアを指定
-    joint_pairs = [[12,11,13,15],[14,12,11,16]]
+    joint_pairs = {
+        3 : [12,11,13,15],
+        4 : [14,12,11,16],
+        }
     
-    angle_df = pd.DataFrame(columns=['id', 'angle'])
-    for i, joint_pair in enumerate(joint_pairs):
+    for i, (key, joint_pair) in enumerate(joint_pairs.items()):
         # 4点の座標を取得
         p_t1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
         p_t2 = landmarks_df[landmarks_df['id'] == joint_pair[1]][['x', 'y', 'z']].values
         p_t3 = landmarks_df[landmarks_df['id'] == joint_pair[2]][['x', 'y', 'z']].values
-        p_z = landmarks_df[landmarks_df['id'] == joint_pair[3]][['x', 'y', 'z']].values
+        p_z  = landmarks_df[landmarks_df['id'] == joint_pair[3]][['x', 'y', 'z']].values
 
         # ベクトルを計算
         v1 = p_t1 - p_t2
@@ -194,13 +217,42 @@ def rot_calq(landmarks_df):
 
         # v2を法線ベクトルとした平面上で、n1とv3のなす角度を計算
         cos_theta = np.dot(n1, v3) / (np.linalg.norm(n1) * np.linalg.norm(v3))
-        theta = np.arccos(cos_theta) * 180 / np.pi
+        theta = np.arccos(cos_theta)
+        degree = np.degrees(theta)
 
         # DataFrameに追加
-        new_row = pd.DataFrame([[i, theta]], columns=['id', 'rotation'])
-        rotation_df = pd.concat([angle_df, new_row], ignore_index=True)
+        angle_df[key-1] = [key, degree]
         
-    return rotation_df
+    return angle_df
+
+def angle_to_value(angle_df):
+    '''角度をサーボの値に変換'''
+    initial_angle = {
+         1:  0,  2:  0,  3: 90,  4: 90,  5: 90,  6:270,  7:  0,  8:  0,  9:-180, 10:180,
+        11:  0, 12: 90, 13:  0, 14:  0, 15:  0, 16:  0, 17:  0, 18:  0, 19:  0, 20:  0,
+        21:  0, 22:  0
+    }
+
+    limit_value = {
+            1:[4000, 11000],
+            2:[5000, 10000],
+            3:[5500, 12000],
+            4:[5000, 10000],
+            5:[5000, 10000],
+            }
+
+    print(angle_df)
+    print(initial_angle.values())
+
+    angle_df['angle'] = angle_df['angle'] - list(initial_angle.values())
+
+    # 角度をサーボの値に変換
+    value_df = angle_df.copy()
+    value_df['angle'] = angle_df['angle'] / 90 * 2500 + 7500
+
+    
+
+    return value_df
 
 
 if __name__ == '__main__':
