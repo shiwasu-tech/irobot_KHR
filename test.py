@@ -1,5 +1,5 @@
 # ref : https://qiita.com/k-keita/items/4546396fa5b7c242c4df
-
+import time
 import cv2
 import mediapipe as mp
 import matplotlib.pyplot as plt
@@ -40,6 +40,17 @@ def clear_message_queue(queue_id):
                 break
     except sysv_ipc.ExistentialError:
         print(f"Message queue with ID {queue_id} does not exist.")
+    
+def init_khr():
+    array = np.zeros((22,2))
+    angle_df = pd.DataFrame(array, columns=['servo_id', 'angle'])
+    angle_df['servo_id'] = range(1,23)
+
+    angle_df['angle'] = 7500
+
+    send_angles_to_queue(angle_df.astype(int), QUE_ID)
+    time.sleep(1)
+
 
 def main():
 
@@ -48,6 +59,7 @@ def main():
     input_mode = input("Send angles to message queue? (y/n): ")
     if input_mode == 'y':
         send_mode = True
+        init_khr()
     else:
         send_mode = False
     
@@ -56,7 +68,7 @@ def main():
     pose = mp_pose.Pose(min_detection_confidence=0.5, min_tracking_confidence=0.5)
 
     # Webカメラを開く
-    cap = cv2.VideoCapture(0)
+    cap = cv2.VideoCapture(2)
 
     # カメラが開けない場合のエラーハンドリング
     if not cap.isOpened():
@@ -117,6 +129,8 @@ def main():
             angle_df = angle_calq(landmarks_df,angle_df)
             #angle_df = rot_calq(landmarks_df, angle_df)
             angle_df, value_df = angle_to_value(angle_df)
+
+            
             
             print("converteds\n",angle_df)
             
@@ -128,7 +142,7 @@ def main():
         cv2.imshow("Pose Estimation", frame)
 
         # 'q'を押すと終了
-        if cv2.waitKey(10) & 0xFF == ord('q'):
+        if cv2.waitKey(5) & 0xFF == ord('q'):
             break
 
     # 終了処理
@@ -236,8 +250,8 @@ def angle_to_value(angle_df):
         21:  0, 22:  0,}
     
     angle_TF = {
-         1:  1,  2:  1,  3:  1,  4:  1,  5: -1,  6: -1,  7:  1,  8:  1,  9:  1, 10:  1,
-        11:  0, 12:  0, 13:  0, 14:  0, 15: -1, 16:  1, 17: -1, 18:  1, 19: -1, 20:  1,
+         1:  1,  2: -1,  3:  1,  4:  1,  5: -1,  6: -1,  7:  1,  8:  1,  9:  1, 10:  1,
+        11:  0, 12:  0, 13:  0, 14:  0, 15: -1, 16: -1, 17:  1, 18:  1, 19:  1, 20: -1,
         21:  0, 22:  0,}
 
     limit_value = {

@@ -81,12 +81,12 @@ int main(int argc, char *argv[]) {
 			}
 
             rcb4_command_recreate(comm, RCB4_COMM_CONST);
-            rcb4_command_set_speed(comm, 50);
+            rcb4_command_set_speed(comm, 100);
 
             // Extract and print rows where the first column has a value of 2
             
             for (int i = 0; i < 22; i++) {
-                rcb4_command_set_servo(comm, array[i][0], 50, array[i][1]);
+                rcb4_command_set_servo(comm, array[i][0], 100, array[i][1]);
             }
             rcb4_send_command(con, comm, buffer);
 		}
