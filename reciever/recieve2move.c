@@ -80,25 +80,15 @@ int main(int argc, char *argv[]) {
 				printf("%f %f\n", array[i][0], array[i][1]);
 			}
 
-            rcb4_command_recreate(comm, RCB4_COMM_SINGLE);
+            rcb4_command_recreate(comm, RCB4_COMM_CONST);
+            rcb4_command_set_speed(comm, 50);
 
             // Extract and print rows where the first column has a value of 2
-            printf("Rows where the first column is 2:\n");
+            
             for (int i = 0; i < 22; i++) {
-                if ((int)array[i][0] == 2) {
-                    
-                    if(array[i][1] > 10000){
-                        array[i][1] = 10000;
-                    }
-                    else if(array[i][1] < 5000){
-                        array[i][1] = 5000;
-                    }
-                    rcb4_command_set_servo(comm, 2, 30, array[i][1]);
-		            rcb4_send_command(con, comm, buffer);
-
-                }
+                rcb4_command_set_servo(comm, array[i][0], 50, array[i][1]);
             }
-
+            rcb4_send_command(con, comm, buffer);
 		}
 
     return 0;

@@ -116,11 +116,9 @@ def main():
 
             angle_df = angle_calq(landmarks_df,angle_df)
             #angle_df = rot_calq(landmarks_df, angle_df)
-            value_df = angle_to_value(angle_df)
+            angle_df, value_df = angle_to_value(angle_df)
             
-            print(landmarks_df)
-            print(angle_df)
-            print(value_df)
+            print("converteds\n",angle_df)
             
             if send_mode:
                 # Send angles to message queue
@@ -144,16 +142,21 @@ def angle_calq(landmarks_df, angle_df):
     '''2つのベクトル間の単純角度を計算'''
     # 計算する関節のペアを指定
     joint_pairs = {
+        1 : [12, 11, 10,  9], # HEAD_Y
         2 : [28, 27, 12, 11], # BODY_Y
-        9 : [13, 11, 13, 15], # L_ELBOW_P
-        10: [14, 12, 14, 16], # R_ELBOW_P
-        15: [23, 25, 23, 11], # L_HIP_P
-        16: [24, 26, 24, 12], # R_HIP_P
-        19: [25, 23, 25, 27], # L_KNEE_P
-        20: [26, 24, 26, 28], # R_KNEE_P
+        5 : [12, 11, 11, 13], # L_SHOULDER_R
+        6 : [11, 12, 12, 14], # R_SHOULDER_R
+        9 : [11, 13, 13, 15], # L_ELBOW_P
+        10: [12, 14, 14, 16], # R_ELBOW_P
+        15: [11, 23, 23, 25], # L_HIP_P
+        16: [12, 24, 24, 26], # R_HIP_P
+        17: [23, 25, 25, 27], # L_KNEE_P
+        18: [24, 26, 26, 28], # R_KNEE_P
+        19: [25, 27, 27, 29], # L_ANKLE_P
+        20: [26, 28, 28, 30], # R_ANKLE_P
 
         }
-    
+
     for i, (key, joint_pair) in enumerate(joint_pairs.items()):
         # 3点の座標を取得
         p_a1 = landmarks_df[landmarks_df['id'] == joint_pair[0]][['x', 'y', 'z']].values
@@ -183,8 +186,8 @@ def angle_calq(landmarks_df, angle_df):
         cross_product = np.cross(v1, v2)
 
         if cross_product[2] < 0:
-            degree = - degree
-        
+            degree =  - degree
+            pass
         
         # DataFrameに追加
         #angle_df.loc[key-1, 'servo_id'] = key
@@ -228,31 +231,54 @@ def rot_calq(landmarks_df, angle_df):
 def angle_to_value(angle_df):
     '''角度をサーボの値に変換'''
     initial_angle = {
-         1:  0,  2:  0,  3: 90,  4: 90,  5: 90,  6:270,  7:  0,  8:  0,  9:-180, 10:180,
-        11:  0, 12: 90, 13:  0, 14:  0, 15:  0, 16:  0, 17:  0, 18:  0, 19:  0, 20:  0,
-        21:  0, 22:  0
-    }
+         1:  0,  2:  0,  3:  0,  4:  0,  5:-90,  6: 90,  7: 90,  8:-90,  9:  0, 10:  0,
+        11:  0, 12:  0, 13:  0, 14:  0, 15:  0, 16:  0, 17:  0, 18:  0, 19:  0, 20:  0,
+        21:  0, 22:  0,}
+    
+    angle_TF = {
+         1:  1,  2:  1,  3:  1,  4:  1,  5: -1,  6: -1,  7:  1,  8:  1,  9:  1, 10:  1,
+        11:  0, 12:  0, 13:  0, 14:  0, 15: -1, 16:  1, 17: -1, 18:  1, 19: -1, 20:  1,
+        21:  0, 22:  0,}
 
     limit_value = {
-            1:[4000, 11000],
-            2:[5000, 10000],
-            3:[5500, 12000],
-            4:[5000, 10000],
-            5:[5000, 10000],
+             1:[3800, 11200],
+             2:[5000, 10000],
+             3:[5300, 12500],
+             4:[2500,  9700],
+             5:[6300, 12500],
+             6:[2500,  8100],
+             7:[4000, 11000],
+             8:[4000, 11000],
+             9:[4400,  7700],
+            10:[7300, 10600],
+            11:[6500,  9500],
+            12:[5500,  8500],
+            13:[6900,  8000],
+            14:[7000,  8100],
+            15:[4000, 11000],
+            16:[4000, 11000],
+            17:[6000, 12000],
+            18:[3000,  9000],
+            19:[5000, 10900],
+            20:[4100, 10000],
+            21:[7000, 10400],
+            22:[4600,  8000]
             }
+    
+    print("initial\n",angle_df)
 
-    print(angle_df)
-    print(initial_angle.values())
-
-    angle_df['angle'] = angle_df['angle'] - list(initial_angle.values())
+    angle_df['angle'] = angle_df['angle'] + list(initial_angle.values())
 
     # 角度をサーボの値に変換
     value_df = angle_df.copy()
-    value_df['angle'] = angle_df['angle'] / 90 * 2500 + 7500
+    value_df['angle'] = list(angle_TF.values())*angle_df['angle'] / 90 * 2500 + 7500
 
-    
+     # limit_valueの範囲に丸める
+    for servo_id, limits in limit_value.items():
+        value_df.loc[value_df['servo_id'] == servo_id, 'angle'] = np.clip(
+            value_df.loc[value_df['servo_id'] == servo_id, 'angle'], limits[0], limits[1])
 
-    return value_df
+    return angle_df, value_df
 
 
 if __name__ == '__main__':
