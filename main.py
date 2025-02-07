@@ -168,7 +168,6 @@ def angle_calq(landmarks_df, angle_df):
         18: [24, 26, 26, 28], # R_KNEE_P
         19: [25, 27, 27, 29], # L_ANKLE_P
         20: [26, 28, 28, 30], # R_ANKLE_P
-
         }
 
     for i, (key, joint_pair) in enumerate(joint_pairs.items()):
@@ -228,6 +227,10 @@ def rot_calq(landmarks_df, angle_df):
         v1 = p_t1 - p_t2
         v2 = p_t3 - p_t2
         v3 = p_z - p_t2
+
+        v1 = v1.squeeze()
+        v2 = v2.squeeze()
+        v3 = v3.squeeze()
 
         # v1,v2平面の法線ベクトルを計算
         n1 = np.cross(v1, v2)

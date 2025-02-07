@@ -1,3 +1,5 @@
+// gcc -I./librcb4/inc -L./librcb4/lib -o ./reciever/recieve2move ./reciever/recieve2move.c -lrcb4
+
 #include "rcb4.h"
 
 #include <stdio.h>
