@@ -1,3 +1,6 @@
+<img width="1500" height="500" alt="image" src="https://github.com/user-attachments/assets/7dabcb2f-586e-4eab-a97b-c42caa8742de" />
+
+
 | 関節   | サーボ名(enum | SERVO_NAME型) | ジョイント番号(int型) | 可動域（from） | （to） | 
 | ------ | ------------- | ------------- | --------------------- | -------------- | ------ | 
 | 頭     | ヨー軸        | HEAD_Y        | 1                     | 3600           | 11400  | 
@@ -24,5 +27,6 @@
 | 右足首 | ロール軸      | R_ANKLE_R     | 22                    | 4300           | 8300   | 
 |        |||||
 | 共通|初期値|||7500|
+
 
 ![image](images/KHR_joint_id.png)
