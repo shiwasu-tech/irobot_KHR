@@ -1,3 +1,6 @@
+# Robot controll system for KHR-3HV robot synchronizing with human body
+
+
 <img width="1500" height="500" alt="image" src="https://github.com/user-attachments/assets/7dabcb2f-586e-4eab-a97b-c42caa8742de" />
 
 
@@ -30,3 +33,4 @@
 
 
 ![image](images/KHR_joint_id.png)
+
